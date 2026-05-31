@@ -13,24 +13,22 @@ public sealed class KronanTools(KronanClient kronanClient)
         WriteIndented = true
     };
 
-    [McpServerTool, Description("Search for products in the Kronan store by keyword. Optionally filter by category.")]
+    [McpServerTool, Description("Search for products in the Kronan store by keyword.")]
     public async Task<string> SearchProducts(
         [Description("The search keyword or phrase")] string query,
-        [Description("Optional category ID to narrow results")] string? categoryId = null,
-        [Description("Page number (1-based)")] int page = 1,
-        [Description("Number of results per page")] int pageSize = 20)
+        [Description("Page number (1-based)")] int page = 1)
     {
-        var result = await kronanClient.SearchProductsAsync(query, page, pageSize, categoryId);
+        var result = await kronanClient.SearchProductsAsync(query, page);
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    [McpServerTool, Description("Get detailed information about a specific product by its ID.")]
+    [McpServerTool, Description("Get detailed information about a specific product by its SKU.")]
     public async Task<string> GetProduct(
-        [Description("The product ID")] string productId)
+        [Description("The product SKU")] string sku)
     {
-        var product = await kronanClient.GetProductAsync(productId);
+        var product = await kronanClient.GetProductAsync(sku);
         if (product is null)
-            return $"Product '{productId}' not found.";
+            return $"Product '{sku}' not found.";
         return JsonSerializer.Serialize(product, JsonOptions);
     }
 
@@ -39,19 +37,5 @@ public sealed class KronanTools(KronanClient kronanClient)
     {
         var categories = await kronanClient.GetCategoriesAsync();
         return JsonSerializer.Serialize(categories, JsonOptions);
-    }
-
-    [McpServerTool, Description("List all Kronan store locations with address and contact information.")]
-    public async Task<string> ListStores()
-    {
-        var stores = await kronanClient.GetStoresAsync();
-        return JsonSerializer.Serialize(stores, JsonOptions);
-    }
-
-    [McpServerTool, Description("Retrieve current offers and campaign deals from the Kronan store.")]
-    public async Task<string> GetOffers()
-    {
-        var offers = await kronanClient.GetOffersAsync();
-        return JsonSerializer.Serialize(offers, JsonOptions);
     }
 }

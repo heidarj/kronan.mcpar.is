@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Kronan.McparIs.Models;
 using Kronan.McparIs.Options;
@@ -24,58 +25,54 @@ public sealed class KronanClient
         if (!string.IsNullOrWhiteSpace(opts.ApiKey))
         {
             _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", opts.ApiKey);
+                new AuthenticationHeaderValue("AccessToken", opts.ApiKey);
         }
     }
 
     public async Task<ProductSearchResult> SearchProductsAsync(
         string query,
         int page = 1,
-        int pageSize = 20,
-        string? categoryId = null,
         CancellationToken cancellationToken = default)
     {
-        var url = $"api/products?query={Uri.EscapeDataString(query)}&page={page}&pageSize={pageSize}";
-        if (!string.IsNullOrWhiteSpace(categoryId))
-            url += $"&categoryId={Uri.EscapeDataString(categoryId)}";
-
         _logger.LogInformation("Searching products: {Query}", query);
-        return await GetAsync<ProductSearchResult>(url, cancellationToken)
+        return await SendAsync<ProductSearchResult>(
+                   HttpMethod.Post,
+                   "products/search/",
+                   new
+                   {
+                       query,
+                       page,
+                       sortBy = "default",
+                       withDetail = true
+                   },
+                   cancellationToken)
                ?? new ProductSearchResult();
     }
 
-    public async Task<ProductDetail?> GetProductAsync(string productId, CancellationToken cancellationToken = default)
+    public async Task<ProductDetail?> GetProductAsync(string sku, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting product: {ProductId}", productId);
-        return await GetAsync<ProductDetail>($"api/products/{Uri.EscapeDataString(productId)}", cancellationToken);
+        _logger.LogInformation("Getting product: {Sku}", sku);
+        return await SendAsync<ProductDetail>(HttpMethod.Get, $"products/{Uri.EscapeDataString(sku)}/", null, cancellationToken);
     }
 
     public async Task<List<Category>> GetCategoriesAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Fetching categories");
-        return await GetAsync<List<Category>>("api/categories", cancellationToken)
+        return await SendAsync<List<Category>>(HttpMethod.Get, "categories/", null, cancellationToken)
                ?? [];
     }
 
-    public async Task<List<Store>> GetStoresAsync(CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Fetching stores");
-        return await GetAsync<List<Store>>("api/stores", cancellationToken)
-               ?? [];
-    }
-
-    public async Task<List<Offer>> GetOffersAsync(CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Fetching offers");
-        return await GetAsync<List<Offer>>("api/offers", cancellationToken)
-               ?? [];
-    }
-
-    private async Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken)
+    private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+            using var request = new HttpRequestMessage(method, url);
+            if (body is not null)
+            {
+                request.Content = JsonContent.Create(body);
+            }
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);

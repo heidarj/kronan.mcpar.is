@@ -4,132 +4,129 @@ namespace Kronan.McparIs.Models;
 
 public sealed class ProductSearchResult
 {
-    [JsonPropertyName("items")]
-    public List<ProductSummary> Items { get; set; } = [];
-
-    [JsonPropertyName("totalCount")]
-    public int TotalCount { get; set; }
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
 
-    [JsonPropertyName("pageSize")]
-    public int PageSize { get; set; }
+    [JsonPropertyName("pageCount")]
+    public int PageCount { get; set; }
+
+    [JsonPropertyName("hasNextPage")]
+    public bool HasNextPage { get; set; }
+
+    [JsonPropertyName("hits")]
+    public List<ProductSummary> Hits { get; set; } = [];
 }
 
 public class ProductSummary
 {
-    [JsonPropertyName("id")]
-    public string? Id { get; set; }
+    [JsonPropertyName("sku")]
+    public string? Sku { get; set; }
 
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
+    [JsonPropertyName("thumbnail")]
+    public string? Thumbnail { get; set; }
 
     [JsonPropertyName("price")]
-    public decimal? Price { get; set; }
+    public decimal Price { get; set; }
 
-    [JsonPropertyName("currency")]
-    public string? Currency { get; set; }
+    [JsonPropertyName("discountedPrice")]
+    public decimal DiscountedPrice { get; set; }
 
-    [JsonPropertyName("categoryId")]
-    public string? CategoryId { get; set; }
+    [JsonPropertyName("discountPercent")]
+    public decimal DiscountPercent { get; set; }
 
-    [JsonPropertyName("imageUrl")]
-    public string? ImageUrl { get; set; }
+    [JsonPropertyName("onSale")]
+    public bool OnSale { get; set; }
 
-    [JsonPropertyName("inStock")]
-    public bool? InStock { get; set; }
+    [JsonPropertyName("priceInfo")]
+    public string? PriceInfo { get; set; }
+
+    [JsonPropertyName("chargedByWeight")]
+    public bool ChargedByWeight { get; set; }
+
+    [JsonPropertyName("pricePerKilo")]
+    public decimal? PricePerKilo { get; set; }
+
+    [JsonPropertyName("baseComparisonUnit")]
+    public string? BaseComparisonUnit { get; set; }
+
+    [JsonPropertyName("temporaryShortage")]
+    public bool TemporaryShortage { get; set; }
 }
 
 public sealed class ProductDetail : ProductSummary
 {
-    [JsonPropertyName("sku")]
-    public string? Sku { get; set; }
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
 
-    [JsonPropertyName("brand")]
-    public string? Brand { get; set; }
+    [JsonPropertyName("image")]
+    public string? Image { get; set; }
 
-    [JsonPropertyName("weight")]
-    public decimal? Weight { get; set; }
+    [JsonPropertyName("qtyPerBaseCompUnit")]
+    public decimal? QtyPerBaseCompUnit { get; set; }
 
-    [JsonPropertyName("dimensions")]
-    public string? Dimensions { get; set; }
+    [JsonPropertyName("countryOfOrigin")]
+    public string? CountryOfOrigin { get; set; }
 
-    [JsonPropertyName("attributes")]
-    public Dictionary<string, string> Attributes { get; set; } = [];
+    [JsonPropertyName("tags")]
+    public List<ProductTag> Tags { get; set; } = [];
+}
+
+public sealed class ProductTag
+{
+    [JsonPropertyName("slug")]
+    public string? Slug { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("image")]
+    public string? Image { get; set; }
+
+    [JsonPropertyName("showOnProductCard")]
+    public bool ShowOnProductCard { get; set; }
 }
 
 public sealed class Category
 {
-    [JsonPropertyName("id")]
-    public string? Id { get; set; }
-
-    [JsonPropertyName("name")]
-    public string? Name { get; set; }
-
-    [JsonPropertyName("parentId")]
-    public string? ParentId { get; set; }
-
     [JsonPropertyName("slug")]
     public string? Slug { get; set; }
-}
-
-public sealed class Store
-{
-    [JsonPropertyName("id")]
-    public string? Id { get; set; }
 
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    [JsonPropertyName("address")]
-    public string? Address { get; set; }
+    [JsonPropertyName("backgroundImage")]
+    public string? BackgroundImage { get; set; }
 
-    [JsonPropertyName("city")]
-    public string? City { get; set; }
+    [JsonPropertyName("icon")]
+    public string? Icon { get; set; }
 
-    [JsonPropertyName("phone")]
-    public string? Phone { get; set; }
-
-    [JsonPropertyName("openingHours")]
-    public string? OpeningHours { get; set; }
-
-    [JsonPropertyName("latitude")]
-    public double? Latitude { get; set; }
-
-    [JsonPropertyName("longitude")]
-    public double? Longitude { get; set; }
+    [JsonPropertyName("children")]
+    public List<CategoryChild> Children { get; set; } = [];
 }
 
-public sealed class Offer
+public sealed class CategoryChild
 {
-    [JsonPropertyName("id")]
-    public string? Id { get; set; }
+    [JsonPropertyName("slug")]
+    public string? Slug { get; set; }
 
-    [JsonPropertyName("title")]
-    public string? Title { get; set; }
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
+    [JsonPropertyName("children")]
+    public List<CategoryLeaf> Children { get; set; } = [];
+}
 
-    [JsonPropertyName("discountPercent")]
-    public decimal? DiscountPercent { get; set; }
+public sealed class CategoryLeaf
+{
+    [JsonPropertyName("slug")]
+    public string? Slug { get; set; }
 
-    [JsonPropertyName("originalPrice")]
-    public decimal? OriginalPrice { get; set; }
-
-    [JsonPropertyName("offerPrice")]
-    public decimal? OfferPrice { get; set; }
-
-    [JsonPropertyName("validFrom")]
-    public DateTimeOffset? ValidFrom { get; set; }
-
-    [JsonPropertyName("validTo")]
-    public DateTimeOffset? ValidTo { get; set; }
-
-    [JsonPropertyName("productId")]
-    public string? ProductId { get; set; }
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 }
