@@ -18,7 +18,7 @@ public sealed class KronanTools(KronanClient kronanClient)
         [Description("The search keyword or phrase")] string query,
         [Description("Optional category ID to narrow results")] string? categoryId = null,
         [Description("Page number (1-based)")] int page = 1,
-        [Description("Number of results per page (max 50)")] int pageSize = 20)
+        [Description("Number of results per page")] int pageSize = 20)
     {
         var result = await kronanClient.SearchProductsAsync(query, page, pageSize, categoryId);
         return JsonSerializer.Serialize(result, JsonOptions);

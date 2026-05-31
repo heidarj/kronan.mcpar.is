@@ -44,8 +44,8 @@ export KRONAN_API_KEY=your_api_key_here
 dotnet run
 ```
 
-The MCP endpoint will be available at: `http://localhost:5000/mcp`  
-A health check is available at: `http://localhost:5000/health`
+The MCP endpoint will be available at: `http://localhost:5076/mcp`  
+A health check is available at: `http://localhost:5076/health`
 
 ## Running with Docker
 
@@ -75,7 +75,7 @@ Example Claude Desktop config (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "kronan": {
-      "url": "http://localhost:5000/mcp",
+      "url": "http://localhost:5076/mcp",
       "transport": "streamable-http"
     }
   }
