@@ -1,0 +1,6 @@
+{
+  "name": "kronan-ui-tests",
+  "private": true,
+  "scripts": {"test": "node --test shopping.test.cjs"},
+  "devDependencies": {"playwright": "1.62.1"}
+}

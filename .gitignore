@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local deployment parameters and generated plugin packages
+*.local.json
+*.local.bicepparam
+infra/*.json
+plugins/dist/
