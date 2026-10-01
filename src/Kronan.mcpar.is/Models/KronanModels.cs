@@ -17,7 +17,7 @@ public sealed class ProductSearchResult
     public bool HasNextPage { get; set; }
 
     [JsonPropertyName("hits")]
-    public List<ProductSummary> Hits { get; set; } = [];
+    public List<ProductSearchHit> Hits { get; set; } = [];
 }
 
 public class ProductSummary
@@ -33,15 +33,6 @@ public class ProductSummary
 
     [JsonPropertyName("price")]
     public decimal Price { get; set; }
-
-    [JsonPropertyName("discountedPrice")]
-    public decimal DiscountedPrice { get; set; }
-
-    [JsonPropertyName("discountPercent")]
-    public decimal DiscountPercent { get; set; }
-
-    [JsonPropertyName("onSale")]
-    public bool OnSale { get; set; }
 
     [JsonPropertyName("priceInfo")]
     public string? PriceInfo { get; set; }
@@ -59,8 +50,26 @@ public class ProductSummary
     public bool TemporaryShortage { get; set; }
 }
 
+public sealed class ProductSearchHit : ProductSummary
+{
+    [JsonPropertyName("detail")]
+    public ProductSearchDetail? Detail { get; set; }
+}
+
+public sealed record ProductSearchDetail(decimal DiscountedPrice, decimal DiscountPercent, bool OnSale,
+    int? QtyInSalesUnit, List<ProductTag>? Tags);
+
 public sealed class ProductDetail : ProductSummary
 {
+    [JsonPropertyName("discountedPrice")]
+    public decimal DiscountedPrice { get; set; }
+
+    [JsonPropertyName("discountPercent")]
+    public decimal DiscountPercent { get; set; }
+
+    [JsonPropertyName("onSale")]
+    public bool OnSale { get; set; }
+
     [JsonPropertyName("description")]
     public string? Description { get; set; }
 

@@ -1,41 +1,28 @@
 using System.ComponentModel;
-using System.Text.Json;
-using Kronan.McparIs.KronanApi;
+using Kronan.McparIs.Services;
+using Microsoft.AspNetCore.Authorization;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace Kronan.McparIs.Tools;
 
-[McpServerToolType]
-public sealed class KronanTools(KronanClient kronanClient)
+[McpServerToolType, Authorize(Policy = "catalog")]
+public sealed class KronanTools(CatalogService catalog)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
+    [McpServerTool(Name = "SearchProducts", ReadOnly = true, Destructive = false, Idempotent = true),
+     Description("Search the Krónan home-delivery catalogue by keyword. Prices and availability may differ in store.")]
+    public async Task<CallToolResult> SearchProducts(string query, int page = 1, CancellationToken cancellationToken = default) =>
+        ToolResults.Success(new { products = await catalog.SearchAsync(query, page, cancellationToken) }, "Product search results.");
 
-    [McpServerTool, Description("Search for products in the Kronan store by keyword.")]
-    public async Task<string> SearchProducts(
-        [Description("The search keyword or phrase")] string query,
-        [Description("Page number (1-based)")] int page = 1)
+    [McpServerTool(Name = "GetProduct", ReadOnly = true, Destructive = false, Idempotent = true), Description("Get a product by its SKU.")]
+    public async Task<CallToolResult> GetProduct(string sku, CancellationToken cancellationToken = default)
     {
-        var result = await kronanClient.SearchProductsAsync(query, page);
-        return JsonSerializer.Serialize(result, JsonOptions);
+        var product = await catalog.ProductAsync(sku, cancellationToken);
+        return product is null ? ToolResults.Failure(new ServiceFailure("product_not_found", "That product was not found."))
+            : ToolResults.Success(new { product }, "Product details.");
     }
 
-    [McpServerTool, Description("Get detailed information about a specific product by its SKU.")]
-    public async Task<string> GetProduct(
-        [Description("The product SKU")] string sku)
-    {
-        var product = await kronanClient.GetProductAsync(sku);
-        if (product is null)
-            return $"Product '{sku}' not found.";
-        return JsonSerializer.Serialize(product, JsonOptions);
-    }
-
-    [McpServerTool, Description("List all product categories available in the Kronan store.")]
-    public async Task<string> ListCategories()
-    {
-        var categories = await kronanClient.GetCategoriesAsync();
-        return JsonSerializer.Serialize(categories, JsonOptions);
-    }
+    [McpServerTool(Name = "ListCategories", ReadOnly = true, Destructive = false, Idempotent = true), Description("List product categories.")]
+    public async Task<CallToolResult> ListCategories(CancellationToken cancellationToken = default) =>
+        ToolResults.Success(new { categories = await catalog.CategoriesAsync(cancellationToken) }, "Product categories.");
 }

@@ -1,91 +1,92 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Kronan.McparIs.Infrastructure;
 using Kronan.McparIs.Models;
 using Kronan.McparIs.Options;
+using Kronan.McparIs.Services;
 using Microsoft.Extensions.Options;
 
 namespace Kronan.McparIs.KronanApi;
 
 public sealed class KronanClient
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<KronanClient> _logger;
+    private readonly HttpClient http;
+    private readonly RequestBudget budget;
+    private readonly TimeProvider time;
+    private readonly bool configured;
+    internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
-    public KronanClient(HttpClient httpClient, IOptions<KronanOptions> options, ILogger<KronanClient> logger)
+    public KronanClient(HttpClient http, IOptions<KronanOptions> options, RequestBudget budget, TimeProvider time)
     {
-        _httpClient = httpClient;
-        _logger = logger;
-
-        var opts = options.Value;
-        _httpClient.BaseAddress = new Uri(opts.BaseUrl);
-
-        if (!string.IsNullOrWhiteSpace(opts.ApiKey))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("AccessToken", opts.ApiKey);
-        }
+        this.http = http;
+        this.budget = budget;
+        this.time = time;
+        http.BaseAddress = new Uri(options.Value.BaseUrl);
+        configured = !string.IsNullOrWhiteSpace(options.Value.ApiKey);
+        if (configured) http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("AccessToken", options.Value.ApiKey);
     }
 
-    public async Task<ProductSearchResult> SearchProductsAsync(
-        string query,
-        int page = 1,
-        CancellationToken cancellationToken = default)
+    public Task<ProductSearchResult?> SearchProductsAsync(string query, int page, CancellationToken ct) =>
+        SendAsync<ProductSearchResult>(HttpMethod.Post, "products/search/",
+            new { query, page, pageSize = 20, sortBy = "default", withDetail = true }, false, ct);
+    public Task<ProductDetail?> GetProductAsync(string sku, CancellationToken ct) =>
+        SendAsync<ProductDetail>(HttpMethod.Get, $"products/{Uri.EscapeDataString(sku)}/", null, false, ct, allowNotFound: true);
+    public Task<List<Category>?> GetCategoriesAsync(CancellationToken ct) =>
+        SendAsync<List<Category>>(HttpMethod.Get, "categories/", null, false, ct);
+    // The documented GET auto-creates a note. It is deliberately never retried or cached.
+    public Task<ShoppingNote?> GetShoppingNoteAsync(CancellationToken ct) =>
+        SendAsync<ShoppingNote>(HttpMethod.Get, "shopping-notes/", null, true, ct);
+    public Task<ShoppingNote?> AddLinesAsync(ShoppingItemInput[] items, CancellationToken ct)
     {
-        _logger.LogInformation("Searching products: {Query}", query);
-        return await SendAsync<ProductSearchResult>(
-                   HttpMethod.Post,
-                   "products/search/",
-                   new
-                   {
-                       query,
-                       page,
-                       sortBy = "default",
-                       withDetail = true
-                   },
-                   cancellationToken)
-               ?? new ProductSearchResult();
+        var change = ShoppingValidation.Normalize(new("add", items));
+        return SendAsync<ShoppingNote>(HttpMethod.Post, "shopping-notes/add-lines/", new { lines = change.Items }, true, ct);
     }
-
-    public async Task<ProductDetail?> GetProductAsync(string sku, CancellationToken cancellationToken = default)
+    public Task<ShoppingNote?> UpdateLineAsync(Guid token, string? text, int? quantity, CancellationToken ct)
     {
-        _logger.LogInformation("Getting product: {Sku}", sku);
-        return await SendAsync<ProductDetail>(HttpMethod.Get, $"products/{Uri.EscapeDataString(sku)}/", null, cancellationToken);
+        var change = ShoppingValidation.Normalize(new("update", LineToken: token, Text: text, Quantity: quantity));
+        return SendAsync<ShoppingNote>(HttpMethod.Patch, "shopping-notes/change-line/", new { token, text = change.Text, quantity = change.Quantity }, true, ct);
     }
+    public Task<ShoppingNote?> RemoveLineAsync(Guid token, CancellationToken ct) =>
+        SendAsync<ShoppingNote>(HttpMethod.Delete, $"shopping-notes/delete-line/?token={token:D}", null, true, ct);
 
-    public async Task<List<Category>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+    private async Task<T?> SendAsync<T>(HttpMethod method, string path, object? body, bool mayChangeState,
+        CancellationToken ct, bool allowNotFound = false)
     {
-        _logger.LogInformation("Fetching categories");
-        return await SendAsync<List<Category>>(HttpMethod.Get, "categories/", null, cancellationToken)
-               ?? [];
-    }
-
-    private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken cancellationToken)
-    {
+        if (!configured) throw new ServiceFailure("connection_required", "The server's Krónan connection has not been configured.");
+        using var permit = await budget.EnterUpstreamAsync(ct);
+        using var request = new HttpRequestMessage(method, path);
+        if (body is not null) request.Content = JsonContent.Create(body, options: JsonOptions);
         try
         {
-            using var request = new HttpRequestMessage(method, url);
-            if (body is not null)
+            using var response = await http.SendAsync(request, ct);
+            if (allowNotFound && response.StatusCode == HttpStatusCode.NotFound) return default;
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                request.Content = JsonContent.Create(body);
+                var delay = response.Headers.RetryAfter?.Delta ??
+                    (response.Headers.RetryAfter?.Date is { } date ? date - time.GetUtcNow() : TimeSpan.FromSeconds(200));
+                delay = TimeSpan.FromSeconds(Math.Clamp(delay.TotalSeconds, 1, 86400));
+                budget.Cooldown(delay);
+                throw new ServiceFailure("upstream_rate_limited", "Krónan asked us to wait before sending more requests.", (int)Math.Ceiling(delay.TotalSeconds));
             }
-
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                throw new ServiceFailure("connection_rejected", "Krónan rejected the server credential. Its owner needs to reconnect or rotate it.");
+            if (!response.IsSuccessStatusCode)
+                throw new ServiceFailure(mayChangeState && (int)response.StatusCode >= 500 ? "outcome_unknown" : "upstream_rejected",
+                    mayChangeState && (int)response.StatusCode >= 500 ? "The change could not be confirmed. Check the list before trying again." : "Krónan could not complete this request.",
+                    outcomeUnknown: mayChangeState && (int)response.StatusCode >= 500);
+            var result = await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
+            if (result is null) throw new JsonException("Missing response.");
+            return result;
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException)
         {
-            _logger.LogError(ex, "HTTP request failed for {Url}", url);
-            throw;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "JSON deserialization failed for {Url}", url);
-            throw;
+            throw new ServiceFailure(mayChangeState ? "outcome_unknown" : "upstream_unavailable",
+                mayChangeState ? "The change could not be confirmed. Check the list before trying again." : "Krónan is temporarily unavailable.",
+                outcomeUnknown: mayChangeState);
         }
     }
 }
