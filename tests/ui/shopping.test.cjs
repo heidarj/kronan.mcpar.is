@@ -52,6 +52,7 @@ test('mobile card escapes API text, uses the bridge, and adds one item', async()
     assert.ok((await frame.locator('#content').innerText()).includes('<img src=x onerror=alert(1)>'));
     assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
     assert.equal(await page.evaluate(()=>window.initialize.protocolVersion),'2026-01-26');
+    assert.equal(await page.evaluate(()=>window.initialize.appInfo.version),'0.1.1');
     await frame.locator('#item').fill('Milk'); await frame.locator('#add-form button').click();
     await frame.locator('#status').filter({hasText:'Shopping note updated'}).waitFor();
     const calls=await page.evaluate(()=>window.calls);
