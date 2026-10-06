@@ -88,7 +88,7 @@ Use the shopping-notes resource for ordinary shopping-list commands. Keep saved 
 
 | Proposed tool | Upstream operation |
 | --- | --- |
-| GetShoppingList | GET /api/v1/shopping-notes/ |
+| GetShoppingNote | GET /api/v1/shopping-notes/ |
 | AddShoppingItems | POST /api/v1/shopping-notes/add-lines/ |
 | UpdateShoppingItem | PATCH /api/v1/shopping-notes/change-line/ |
 | RemoveShoppingItem | DELETE /api/v1/shopping-notes/delete-line/?token=... |
@@ -156,7 +156,7 @@ Do not deduplicate solely by item text: two deliberate requests to add butter ma
 
 Add an optional MCP Apps component served by the existing .NET application. ChatGPT can display HTML/CSS/JavaScript, including a bundled React component, inside a sandboxed iframe alongside the conversation. Start with an inline shopping-note card and product cards with images, prices, quantity controls, and an Add button. Keep completion controls deferred until the desired-state operation is safe. [ChatGPT component UI](https://developers.openai.com/plugins/build/chatgpt-ui).
 
-Keep data and mutation tools independently usable, including through Alexa. Add focused ShowShoppingList and ShowProducts render tools instead of rendering a new card after every operation. Return structuredContent with stable line/product identifiers. Register an MCP UI resource using text/html;profile=mcp-app and associate it through _meta.ui.resourceUri. Component interactions call the existing tools through the MCP Apps bridge.
+Keep data and mutation tools independently usable, including through Alexa. Add focused ShowShoppingNote and ShowProducts render tools instead of rendering a new card after every operation. The note card must state that it is separate from checkout and named saved product lists. Return structuredContent with stable line/product identifiers. Register an MCP UI resource using text/html;profile=mcp-app and associate it through _meta.ui.resourceUri. Component interactions call the existing tools through the MCP Apps bridge.
 
 Every button action must pass the same server-side authorization, validation, mutation preparation, and rate limits as a conversational tool call. Treat displayed IDs and quantities as untrusted inputs. Fetch authoritative note state when reopening a card; temporary selection state can remain in the component. Do not use browser storage as the shopping-list database or send API keys to the iframe.
 

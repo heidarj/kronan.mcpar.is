@@ -45,7 +45,7 @@ public sealed class MutationCoordinator(TimeProvider time, IOptions<LimitsOption
             {
                 if (operationId is null || operationId.Length != 65 || !operationId.StartsWith(generation + ".", StringComparison.Ordinal) ||
                     !entries.TryGetValue(operationId, out entry!) || entry.Expires <= Now)
-                    throw new ServiceFailure("operation_expired", "This prepared change expired or the server restarted. Check the list before preparing a new change.");
+                    throw new ServiceFailure("operation_expired", "This prepared change expired or the server restarted. Check the shopping note before preparing a new change.");
                 if (entry.Subject != actor.Subject) throw new ServiceFailure("forbidden", "This change belongs to another connected account.");
                 if (entry.Fingerprint != Fingerprint(normalized)) throw new ServiceFailure("operation_conflict", "This operation ID was prepared for different arguments.");
                 if (entry.Result is { } previous) return previous;
@@ -71,7 +71,7 @@ public sealed class MutationCoordinator(TimeProvider time, IOptions<LimitsOption
             }
             catch
             {
-                var failure = new ServiceFailure("outcome_unknown", "The change could not be confirmed. Check the list before trying again.", outcomeUnknown: true);
+                var failure = new ServiceFailure("outcome_unknown", "The change could not be confirmed. Check the shopping note before trying again.", outcomeUnknown: true);
                 lock (gate) { entry.Pending = false; entry.Failure = failure; }
                 throw failure;
             }

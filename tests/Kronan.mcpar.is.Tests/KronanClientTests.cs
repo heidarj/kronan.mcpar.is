@@ -21,7 +21,7 @@ public sealed class KronanClientTests
             Assert.Equal(20, body.RootElement.GetProperty("pageSize").GetInt32());
             return StubHandler.Json("{\"count\":1,\"page\":1,\"hits\":[{\"sku\":\"123\",\"name\":\"Butter\",\"price\":500,\"detail\":{\"discountedPrice\":400,\"discountPercent\":20,\"onSale\":true,\"tags\":[]}}]}");
         });
-        var result = await TestSupport.Client(handler).SearchProductsAsync("Butter", 1, default);
+        var result = await TestSupport.Client(handler).SearchProductsAsync("Butter", 1, 20, "default", true, false, default);
         Assert.Equal(400, Assert.Single(result!.Hits).Detail!.DiscountedPrice);
     }
 

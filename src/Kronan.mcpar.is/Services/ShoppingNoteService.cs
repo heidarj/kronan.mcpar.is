@@ -13,7 +13,7 @@ public sealed class ShoppingNoteService(KronanClient client, HouseholdAccess acc
     public async Task<ShoppingNote> GetAsync(CancellationToken ct)
     {
         access.Require(auth.Value.ShoppingReadScope);
-        return await client.GetShoppingNoteAsync(ct) ?? throw new ServiceFailure("upstream_unavailable", "The shopping list is unavailable.");
+        return await client.GetShoppingNoteAsync(ct) ?? throw new ServiceFailure("upstream_unavailable", "The shopping note is unavailable.");
     }
 
     public PreparedChange Prepare(ShoppingChange change) =>
@@ -26,7 +26,7 @@ public sealed class ShoppingNoteService(KronanClient client, HouseholdAccess acc
             {
                 var note = await client.GetShoppingNoteAsync(token);
                 if (note?.Lines.Any(line => line.Token == normalized.LineToken) != true)
-                    throw new ServiceFailure("line_not_found", "That item is not in the connected household's shopping list.");
+                    throw new ServiceFailure("line_not_found", "That item is not in the connected household's shopping note.");
             }
             return (normalized.Action switch
             {
@@ -34,6 +34,6 @@ public sealed class ShoppingNoteService(KronanClient client, HouseholdAccess acc
                 "update" => await client.UpdateLineAsync(normalized.LineToken!.Value, normalized.Text, normalized.Quantity, token),
                 "remove" => await client.RemoveLineAsync(normalized.LineToken!.Value, token),
                 _ => throw new InvalidOperationException()
-            }) ?? throw new ServiceFailure("outcome_unknown", "The change could not be confirmed. Check the list before trying again.", outcomeUnknown: true);
+            }) ?? throw new ServiceFailure("outcome_unknown", "The change could not be confirmed. Check the shopping note before trying again.", outcomeUnknown: true);
         }, ct);
 }

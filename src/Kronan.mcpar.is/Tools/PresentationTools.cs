@@ -18,11 +18,11 @@ public sealed class PresentationTools(ShoppingNoteService shopping, CatalogServi
     private bool CanWrite => HouseholdAccess.HasScope(contexts.HttpContext!.User, auth.Value.ShoppingWriteScope);
 
     [Authorize(Policy = "shopping.read")]
-    [McpServerTool(Name = "ShowShoppingList", ReadOnly = false, Destructive = false, Idempotent = false),
+    [McpServerTool(Name = "ShowShoppingNote", ReadOnly = false, Destructive = false, Idempotent = false),
      McpMeta("ui", JsonValue = "{\"resourceUri\":\"ui://kronan/shopping-v1.html\"}"),
-     Description("Show the live household shopping note as an interactive card. Fetches current state; Krónan may create a note if none exists.")]
-    public async Task<CallToolResult> ShowShoppingList(CancellationToken cancellationToken = default) =>
-        ToolResults.Success(new { note = await shopping.GetAsync(cancellationToken), canWrite = CanWrite }, "Your shopping list is shown in the card.");
+     Description("Show the live free-form household shopping note as an interactive card. It does not show the active checkout or named saved product lists. Fetches current state; Krónan may create a note if none exists.")]
+    public async Task<CallToolResult> ShowShoppingNote(CancellationToken cancellationToken = default) =>
+        ToolResults.Success(new { note = await shopping.GetAsync(cancellationToken), canWrite = CanWrite }, "The shopping note is shown in the card.");
 
     [Authorize(Policy = "catalog")]
     [McpServerTool(Name = "ShowProducts", ReadOnly = true, Destructive = false, Idempotent = true),

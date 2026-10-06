@@ -11,7 +11,11 @@ public sealed class AuthenticationOptions
     public string CatalogScope { get; set; } = "catalog:read";
     public string ShoppingReadScope { get; set; } = "shopping:read";
     public string ShoppingWriteScope { get; set; } = "shopping:write";
+    public string AccountReadScope { get; set; } = "account:read";
+    public string AccountWriteScope { get; set; } = "account:write";
+    public string CheckoutCommitScope { get; set; } = "checkout:commit";
+    public string PaymentsReadScope { get; set; } = "payments:read";
     public bool DevelopmentBypass { get; set; }
     public string MetadataUrl => new Uri(new Uri(Resource), "/.well-known/oauth-protected-resource").AbsoluteUri;
-    public string[] Scopes => [CatalogScope, ShoppingReadScope, ShoppingWriteScope];
+    public string[] Scopes => [CatalogScope, ShoppingReadScope, ShoppingWriteScope, AccountReadScope, AccountWriteScope, CheckoutCommitScope, PaymentsReadScope];
 }

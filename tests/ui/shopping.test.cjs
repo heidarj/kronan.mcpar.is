@@ -31,7 +31,7 @@ async function card({width=390, canWrite=true, theme='light', products}={}) {
       if(msg.method==='tools/call') {
         const call=msg.params; window.calls.push(call);
         if(call.name==='PrepareShoppingChange') {respond({structuredContent:{prepared:{operationId:'operation-'+(++window.prepared)}}});return;}
-        if(call.name==='GetShoppingList') {respond({structuredContent:{note:window.note}});return;}
+        if(call.name==='GetShoppingNote') {respond({structuredContent:{note:window.note}});return;}
         if(window.failure) {const error=window.failure;window.failure=null;respond({isError:true,structuredContent:{error}});return;}
         if(call.name==='AddShoppingItems') window.note.lines.push({token:'a0000000-0000-0000-0000-000000000003',text:call.arguments.items[0].text||'Selected product',quantity:1});
         if(call.name==='RemoveShoppingItem') window.note.lines=window.note.lines.filter(l=>l.token!==call.arguments.lineToken);
@@ -53,7 +53,7 @@ test('mobile card escapes API text, uses the bridge, and adds one item', async()
     assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
     assert.equal(await page.evaluate(()=>window.initialize.protocolVersion),'2026-01-26');
     await frame.locator('#item').fill('Milk'); await frame.locator('#add-form button').click();
-    await frame.locator('#status').filter({hasText:'Shopping list updated'}).waitFor();
+    await frame.locator('#status').filter({hasText:'Shopping note updated'}).waitFor();
     const calls=await page.evaluate(()=>window.calls);
     assert.deepEqual(calls.map(c=>c.name),['PrepareShoppingChange','AddShoppingItems']);
     assert.equal(calls[1].arguments.operationId,'operation-1');
@@ -72,7 +72,7 @@ test('removal requires inline confirmation and cancellation makes no call',async
     await frame.getByRole('button',{name:'Remove Butter',exact:true}).click();
     assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
     await frame.getByRole('button',{name:'Confirm removal',exact:true}).click();
-    await frame.locator('#status').filter({hasText:'Shopping list updated'}).waitFor();
+    await frame.locator('#status').filter({hasText:'Shopping note updated'}).waitFor();
     assert.equal(await frame.locator('li').count(),1);
   }finally {await page.close();}
 });
@@ -85,7 +85,7 @@ test('unknown write blocks further changes until explicit refresh',async()=>{
     assert.equal(await frame.locator('#item').isDisabled(),true);
     assert.equal(await frame.locator('#refresh').isEnabled(),true);
     await frame.locator('#refresh').click();
-    await frame.locator('#status').filter({hasText:'List refreshed'}).waitFor();
+    await frame.locator('#status').filter({hasText:'Shopping note refreshed'}).waitFor();
     assert.equal(await frame.locator('#item').isEnabled(),true);
     assert.equal(await page.evaluate(()=>window.prepared),1);
   }finally {await page.close();}
@@ -97,7 +97,7 @@ test('a known pre-dispatch failure retries the same operation ID',async()=>{
     await frame.locator('#item').fill('Eggs'); await frame.locator('#add-form button').click();
     await frame.locator('#status').filter({hasText:'Try again in 2 seconds'}).waitFor();
     await frame.locator('#add-form button').click();
-    await frame.locator('#status').filter({hasText:'Shopping list updated'}).waitFor();
+    await frame.locator('#status').filter({hasText:'Shopping note updated'}).waitFor();
     const calls=await page.evaluate(()=>window.calls);
     assert.equal(calls.filter(c=>c.name==='PrepareShoppingChange').length,1);
     assert.equal(calls[1].arguments.operationId,calls[2].arguments.operationId);
@@ -115,8 +115,8 @@ test('dark product cards display a zero sale price and add a SKU',async()=>{
     assert.equal(await frame.locator('img').count(),0);
     assert.match(await frame.locator('.price').innerText(),/0/);
     if(process.env.SCREENSHOT_DIR) await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'products-dark.png')});
-    await frame.getByRole('button',{name:'Add to list',exact:true}).click();
-    await frame.locator('#status').filter({hasText:'Shopping list updated'}).waitFor();
+    await frame.getByRole('button',{name:'Add to shopping note',exact:true}).click();
+    await frame.locator('#status').filter({hasText:'Shopping note updated'}).waitFor();
     assert.equal((await page.evaluate(()=>window.calls))[1].arguments.items[0].sku,'123');
     assert.deepEqual(errors,[]);
   }finally {await page.close();}

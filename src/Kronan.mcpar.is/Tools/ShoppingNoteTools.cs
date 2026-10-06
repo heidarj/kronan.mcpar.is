@@ -11,10 +11,10 @@ namespace Kronan.McparIs.Tools;
 public sealed class ShoppingNoteTools(ShoppingNoteService shopping)
 {
     [Authorize(Policy = "shopping.read")]
-    [McpServerTool(Name = "GetShoppingList", ReadOnly = false, Destructive = false, Idempotent = false),
-     Description("Get the connected household's current shopping note. Krónan automatically creates a note if none exists. Use this to inspect uncertain changes before preparing another.")]
-    public async Task<CallToolResult> GetShoppingList(CancellationToken cancellationToken = default) =>
-        ToolResults.Success(new { note = await shopping.GetAsync(cancellationToken) }, "Current shopping list.");
+    [McpServerTool(Name = "GetShoppingNote", ReadOnly = false, Destructive = false, Idempotent = false),
+     Description("Get the connected household's free-form shopping note. This is separate from an active checkout and named saved product lists. Krónan automatically creates a note if none exists. Use this to inspect uncertain changes before preparing another.")]
+    public async Task<CallToolResult> GetShoppingNote(CancellationToken cancellationToken = default) =>
+        ToolResults.Success(new { note = await shopping.GetAsync(cancellationToken) }, "Current free-form shopping note.");
 
     [Authorize(Policy = "shopping.write")]
     [McpServerTool(Name = "PrepareShoppingChange", ReadOnly = false, Destructive = false, Idempotent = false),

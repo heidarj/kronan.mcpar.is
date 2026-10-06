@@ -44,10 +44,10 @@
 </head>
 <body>
   <header>
-    <div class="brand"><span class="badge" aria-hidden="true">K</span><div><h1 id="title">Your shopping list</h1><p id="subtitle">Connected to Krónan</p></div></div>
+    <div class="brand"><span class="badge" aria-hidden="true">K</span><div><h1 id="title">Shopping note</h1><p id="subtitle">Free-form note · Krónan</p></div></div>
     <button id="refresh" type="button">Refresh</button>
   </header>
-  <main id="content"><p class="empty">Waiting for your shopping connection…</p></main>
+  <main id="content"><p class="empty">Waiting for your shopping-note connection…</p></main>
   <form id="add-form" hidden><input id="item" maxlength="255" placeholder="Add an item, e.g. butter…" aria-label="Item to add" autocomplete="off"><button class="primary" type="submit">Add</button></form>
   <p id="status" role="status" aria-live="polite"></p>
   <script>
@@ -64,7 +64,7 @@
     function rpc(method, params) {
       return new Promise((resolve,reject) => {
         const id = ++sequence;
-        const timer = setTimeout(() => { pending.delete(id); reject(new Error("The connection timed out. Refresh the list before repeating a change.")); }, 35000);
+        const timer = setTimeout(() => { pending.delete(id); reject(new Error("The connection timed out. Refresh the shopping note before repeating a change.")); }, 35000);
         pending.set(id, {resolve,reject,timer});
         window.parent.postMessage({jsonrpc:"2.0", id, method, params}, targetOrigin);
       });
@@ -108,7 +108,7 @@
       finally { busy = false; disableControls(); }
     }
     async function change(request) {
-      if (uncertain) throw new Error("Refresh and inspect the list before making another change.");
+      if (uncertain) throw new Error("Refresh and inspect the shopping note before making another change.");
       const fingerprint = JSON.stringify(request);
       let id;
       if (retryOperation?.fingerprint === fingerprint) id = retryOperation.id;
@@ -126,7 +126,7 @@
       if (request.quantity != null) args.quantity = request.quantity;
       try {
         const result = await tool(names[request.action], args);
-        retryOperation = null; receive(result); message("Shopping list updated.");
+        retryOperation = null; receive(result); message("Shopping note updated.");
       } catch (error) {
         // Only failures known to occur before dispatch permit a button retry with the same ID.
         if (!["rate_limited","concurrent_limit","upstream_cooldown"].includes(error.code)) uncertain = true;
@@ -134,10 +134,10 @@
       }
     }
     function renderNote(note) {
-      document.getElementById("title").textContent = note.name || "Your shopping list";
-      document.getElementById("subtitle").textContent = note.lines.length + " items · Krónan";
+      document.getElementById("title").textContent = note.name || "Shopping note";
+      document.getElementById("subtitle").textContent = note.lines.length + " items · Free-form note · Krónan";
       content.replaceChildren(); form.hidden = !canWrite;
-      if (!note.lines.length) content.append(element("p", "Your list is empty. Add your first item below.", "empty"));
+      if (!note.lines.length) content.append(element("p", "This shopping note is empty. Add your first item below.", "empty"));
       const list = element("ul");
       for (const line of note.lines.slice(0,200)) {
         const row = element("li", null, line.isCompleted ? "completed" : "");
@@ -183,7 +183,7 @@
         if (product.onSale) price.append(element("del", money.format(product.price)));
         card.append(price);
         if (product.priceInfo) card.append(element("p", product.priceInfo));
-        const add = element("button", "Add to list", "primary"); add.type = "button";
+        const add = element("button", "Add to shopping note", "primary"); add.type = "button";
         add.addEventListener("click", () => run(() => change({action:"add",items:[{sku:product.sku,quantity:1}]})));
         card.append(add); grid.append(card);
       }
@@ -191,10 +191,10 @@
       if (!products.length) content.append(element("p", "These products could not be found.", "empty"));
     }
     refresh.addEventListener("click", () => run(async () => {
-      const result = await tool("GetShoppingList", {});
+      const result = await tool("GetShoppingNote", {});
       receive(result);
       retryOperation = null; uncertain = false;
-      message("List refreshed. Inspect it before repeating an unconfirmed change.");
+      message("Shopping note refreshed. Inspect it before repeating an unconfirmed change.");
     }));
     form.addEventListener("submit", event => {
       event.preventDefault(); const input = document.getElementById("item"), text = input.value.trim();

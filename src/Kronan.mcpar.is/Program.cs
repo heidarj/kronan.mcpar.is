@@ -45,6 +45,7 @@ builder.Services.AddOptions<LimitsOptions>().BindConfiguration(LimitsOptions.Sec
         "Production requires a 200-second restart cooldown and at least two seconds between upstream requests.").ValidateOnStart();
 builder.Services.AddOptions<UiOptions>().BindConfiguration("Ui")
     .Validate(o => o.ImageOrigins.Length <= 20 && o.ImageOrigins.All(Https), "UI image origins must be HTTPS URLs.").ValidateOnStart();
+builder.Services.AddOptions<ApiOptions>().BindConfiguration(ApiOptions.SectionName);
 
 var authentication = builder.Services.AddAuthentication(developmentBypass ? "loopback" : JwtBearerDefaults.AuthenticationScheme);
 if (developmentBypass) authentication.AddScheme<AuthenticationSchemeOptions, LoopbackAuthenticationHandler>("loopback", _ => { });
@@ -80,11 +81,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<RequestBudget>();
 builder.Services.AddSingleton<MutationCoordinator>();
+builder.Services.AddSingleton<ApiMutationCoordinator>();
 builder.Services.AddSingleton<CatalogCache>();
 builder.Services.AddMemoryCache(o => o.SizeLimit = 256);
 builder.Services.AddScoped<HouseholdAccess>();
 builder.Services.AddScoped<ShoppingNoteService>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<ApiOperationService>();
 builder.Services.AddHttpClient<KronanClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
@@ -126,11 +129,11 @@ builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true)
                 return await next(context, ct);
             }
             catch (ServiceFailure failure) { return ToolResults.Failure(failure); }
-            catch (OperationCanceledException) { return ToolResults.Failure(new ServiceFailure("cancelled", "The request was cancelled. Check the list before repeating a change.")); }
+            catch (OperationCanceledException) { return ToolResults.Failure(new ServiceFailure("cancelled", "The request was cancelled. Check the current state before repeating a change.")); }
             catch (Exception ex)
             {
                 services.GetRequiredService<ILogger<Program>>().LogError("Tool failed with exception type {ExceptionType}", ex.GetType().Name);
-                return ToolResults.Failure(new ServiceFailure("tool_failed", "The operation could not be completed. Check the list before repeating a change."));
+                return ToolResults.Failure(new ServiceFailure("tool_failed", "The operation could not be completed. Check the current state before repeating a change."));
             }
         });
         filters.AddListToolsFilter(next => async (context, ct) =>
@@ -138,9 +141,9 @@ builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true)
             var result = await next(context, ct);
             foreach (var tool in result.Tools)
             {
-                var scope = tool.Name switch
+                var scope = FullApiTools.TryGetRequiredScope(tool.Name, auth, out var fullApiScope) ? fullApiScope : tool.Name switch
                 {
-                    "GetShoppingList" or "ShowShoppingList" => auth.ShoppingReadScope,
+                    "GetShoppingNote" or "ShowShoppingNote" => auth.ShoppingReadScope,
                     "PrepareShoppingChange" or "AddShoppingItems" or "UpdateShoppingItem" or "RemoveShoppingItem" => auth.ShoppingWriteScope,
                     _ => auth.CatalogScope
                 };

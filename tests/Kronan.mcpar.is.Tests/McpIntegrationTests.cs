@@ -29,7 +29,7 @@ public sealed class McpIntegrationTests
     {
         using var factory = new McpFactory(); using var client = factory.CreateClient();
         if (kind != "missing") client.DefaultRequestHeaders.Authorization = new("Bearer", factory.Token(kind));
-        var response = await Call(client, "GetShoppingList", new { });
+        var response = await Call(client, "GetShoppingNote", new { });
         Assert.Equal(status, (int)response.StatusCode); Assert.Equal(0, factory.Upstream.Calls);
         if (status == 401) Assert.Contains("oauth-protected-resource", response.Headers.WwwAuthenticate.ToString());
     }
@@ -49,11 +49,28 @@ public sealed class McpIntegrationTests
         using var factory = new McpFactory(); using var client = Authenticated(factory);
         using var response = await Rpc(client, "tools/list", new { });
         var root = await Json(response); var tools = root.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
-        Assert.Equal(10, tools.Length);
-        var show = tools.Single(t => t.GetProperty("name").GetString() == "ShowShoppingList");
+        var expected = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "SearchProducts", "GetProduct", "ListCategories", "GetShoppingNote", "PrepareShoppingChange", "AddShoppingItems", "UpdateShoppingItem", "RemoveShoppingItem", "ShowShoppingNote", "ShowProducts", "PrepareApiOperation",
+            "ListAddresses", "GetCategoryProducts", "GetActiveCheckout", "AddActiveCheckoutToOrder", "CompleteCheckout", "UpdateCheckoutLines", "PreviewCheckoutLines", "GetIdentity",
+            "ListOrders", "GetOrder", "DeleteOrderLines", "ToggleOrderLineSubstitution", "LowerOrderLineQuantities", "GetActiveOrder", "GetOrderLineSummary",
+            "GetGiftCardBalance", "ListGiftCardTransactions",
+            "ListProductLists", "CreateProductList", "GetProductList", "UpdateProductList", "DeleteProductList", "BatchAddProductListItems", "ClearProductList", "SortProductListItems", "UpdateProductListItem",
+            "ListProductPurchaseStats", "SetProductPurchaseIgnored",
+            "GetProductByBarcode", "GetProductsBatch", "ListProductsByTag", "ListFavoriteProducts", "ListProductsOnSale", "ListProductTags",
+            "ListRecipes", "GetRecipe", "FavoriteRecipe", "UnfavoriteRecipe", "ListFavoriteRecipes", "SearchRecipes", "GetApiSchema",
+            "AddShoppingNoteItem", "ReorderShoppingNoteLines", "DeleteArchivedShoppingNoteLine", "ClearShoppingNote", "CheckShoppingNoteStoreOrderEligibility", "ListArchivedShoppingNoteLines", "GetStoreProduct", "ListScanAndGoStores", "SearchStoreProducts", "SortShoppingNoteByStore", "ToggleShoppingNoteLineCompletion",
+            "ListDeliverySlots", "ReserveDeliverySlot", "ListPickupSlots", "ReservePickupSlot"
+        };
+        var actual = tools.Select(tool => tool.GetProperty("name").GetString() ?? "").ToHashSet(StringComparer.Ordinal);
+        var difference = actual.Where(name => !expected.Contains(name)).Concat(expected.Where(name => !actual.Contains(name))).Order();
+        Assert.True(expected.SetEquals(actual), $"Unexpected registered tools: {string.Join(", ", difference)}");
+        var show = tools.Single(t => t.GetProperty("name").GetString() == "ShowShoppingNote");
         Assert.Equal("ui://kronan/shopping-v1.html", show.GetProperty("_meta").GetProperty("ui").GetProperty("resourceUri").GetString());
         Assert.False(show.GetProperty("annotations").GetProperty("readOnlyHint").GetBoolean());
         Assert.Equal("oauth2", show.GetProperty("_meta").GetProperty("securitySchemes")[0].GetProperty("type").GetString());
+        var lists = tools.Single(t => t.GetProperty("name").GetString() == "ListProductLists");
+        Assert.Equal("account:read", lists.GetProperty("_meta").GetProperty("securitySchemes")[0].GetProperty("scopes")[0].GetString());
     }
 
     [Fact]
@@ -136,7 +153,7 @@ public sealed class McpIntegrationTests
     {
         using var factory = new McpFactory(entra: true); using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", factory.Token("omit-oid"));
-        using var response = await Call(client, "GetShoppingList", new { });
+        using var response = await Call(client, "GetShoppingNote", new { });
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(0, factory.Upstream.Calls);
     }
@@ -204,7 +221,7 @@ internal sealed class McpFactory(bool entra = false) : WebApplicationFactory<Pro
             services.AddHttpClient<KronanClient>().ConfigurePrimaryHttpMessageHandler(() => Upstream);
         });
     }
-    public string Token(string kind = "valid", string scope = "catalog:read shopping:read shopping:write", string subject = "member-one")
+    public string Token(string kind = "valid", string scope = "catalog:read shopping:read shopping:write account:read account:write checkout:commit payments:read", string subject = "member-one")
     {
         var now = DateTime.UtcNow;
         var signingKey = kind == "wrong-signature" ? new RsaSecurityKey(RSA.Create(2048)) { KeyId = "other-key" } : key;

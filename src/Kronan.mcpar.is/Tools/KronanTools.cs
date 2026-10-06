@@ -10,9 +10,10 @@ namespace Kronan.McparIs.Tools;
 public sealed class KronanTools(CatalogService catalog)
 {
     [McpServerTool(Name = "SearchProducts", ReadOnly = true, Destructive = false, Idempotent = true),
-     Description("Search the Krónan home-delivery catalogue by keyword. Prices and availability may differ in store.")]
-    public async Task<CallToolResult> SearchProducts(string query, int page = 1, CancellationToken cancellationToken = default) =>
-        ToolResults.Success(new { products = await catalog.SearchAsync(query, page, cancellationToken) }, "Product search results.");
+     Description("Search the Krónan home-delivery catalogue by keyword. Supports the documented page, pageSize, sortBy, withDetail, and includePurchaseHistory fields. Prices and availability may differ in store.")]
+    public async Task<CallToolResult> SearchProducts(string query, int page = 1, int pageSize = 20, string? sortBy = "default",
+        bool withDetail = true, bool includePurchaseHistory = false, CancellationToken cancellationToken = default) =>
+        ToolResults.Success(new { products = await catalog.SearchAsync(query, page, pageSize, sortBy, withDetail, includePurchaseHistory, cancellationToken) }, "Product search results.");
 
     [McpServerTool(Name = "GetProduct", ReadOnly = true, Destructive = false, Idempotent = true), Description("Get a product by its SKU.")]
     public async Task<CallToolResult> GetProduct(string sku, CancellationToken cancellationToken = default)
