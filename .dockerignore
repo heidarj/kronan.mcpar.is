@@ -25,3 +25,9 @@ LICENSE
 README.md
 !**/.gitignore
 !.git/config
+**/*.local.json
+**/*.local.bicepparam
+**/tests
+**/plugins
+**/infra
+**/docs

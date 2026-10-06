@@ -1,0 +1,37 @@
+name: Validate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test tests/Kronan.mcpar.is.Tests -c Release
+      - run: docker build -t kronan-mcp:test .
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+        working-directory: tests/ui
+      - run: npx playwright install --with-deps chromium
+        working-directory: tests/ui
+      - run: npm test
+        working-directory: tests/ui
+  templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: az bicep build --file infra/foundation.bicep --outfile /tmp/foundation.json
+      - run: az bicep build --file infra/app.bicep --outfile /tmp/app.json
+      - run: python3 scripts/package-plugin.py https://kronan.example/mcp

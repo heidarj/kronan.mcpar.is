@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "kronan-shopping",
+  "version": "0.1.3",
+  "description": "Use Krónan's public API for catalogue search, checkout, saved product lists, and the separate household shopping note.",
+  "author": {"name": "Heiðar Holmberg Jónsson", "url": "https://github.com/heidarj"},
+  "repository": "https://github.com/heidarj/kronan.mcpar.is",
+  "license": "GPL-3.0"
+}

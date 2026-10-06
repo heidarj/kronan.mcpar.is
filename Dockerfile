@@ -1,20 +1,15 @@
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY ["src/Kronan.mcpar.is/Kronan.mcpar.is.csproj", "src/Kronan.mcpar.is/"]
-RUN dotnet restore "src/Kronan.mcpar.is/Kronan.mcpar.is.csproj"
-COPY . .
-WORKDIR "/src/src/Kronan.mcpar.is"
-RUN dotnet build "Kronan.mcpar.is.csproj" -c Release -o /app/build
+COPY global.json ./
+COPY src/Kronan.mcpar.is/Kronan.mcpar.is.csproj src/Kronan.mcpar.is/
+RUN dotnet restore src/Kronan.mcpar.is/Kronan.mcpar.is.csproj
+COPY src/ src/
+RUN dotnet publish src/Kronan.mcpar.is/Kronan.mcpar.is.csproj -c Release --no-restore -o /app /p:UseAppHost=false
 
-FROM build AS publish
-RUN dotnet publish "Kronan.mcpar.is.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+USER $APP_UID
+COPY --from=build /app .
 ENTRYPOINT ["dotnet", "Kronan.mcpar.is.dll"]
