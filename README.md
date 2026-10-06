@@ -53,7 +53,7 @@ Use environment variables (`__` separates nested keys). Never put credentials in
 
 Production configuration is mandatory and validated at startup. There is no inbound shared API-key fallback. Default budget configuration is in `appsettings.json`; production cannot lower restart cooldown below 200 seconds or pacing below two seconds.
 
-Public endpoints: `/health`, `/ready`, `/.well-known/oauth-protected-resource/mcp`. `/ready` returns 503 during restart cooldown. `/mcp` requires a valid bearer token, household membership, and the tool's scope.
+Public endpoints: `/health`, `/ready`, `/.well-known/oauth-protected-resource/mcp`. Health and readiness responses include the running project version; `/ready` returns 503 during restart cooldown. The server also logs that version when it starts. `/mcp` requires a valid bearer token, household membership, and the tool's scope.
 
 ## Local development and validation
 
@@ -90,6 +90,7 @@ For local development, see [Krónan Shopping (Dev)](plugins/kronan-shopping-dev/
 It includes a loopback MCP configuration and a tunnel-client profile for the dev
 tunnel. Build its ZIP with `python3 scripts/package-plugin-dev.py`. ChatGPT cloud
 tunnel registration still requires workspace plugin access and a registered app ID.
+Both plugin packagers check that their manifest version matches the .NET project's `<Version>`; the development packager also checks the MCP App client version.
 
 See [API request examples](docs/api-request-examples.md) for structured tool inputs, [full API tool plan](docs/full-api-tool-plan.md) for the complete operation mapping, [implementation plan](docs/implementation-plan.md) for the original staged scope, and [acceptance checks](docs/acceptance.md) for the remaining live gates.
 

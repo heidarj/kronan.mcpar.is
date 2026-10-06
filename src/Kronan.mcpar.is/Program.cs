@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Threading.RateLimiting;
 using System.Text.Json.Nodes;
 using Kronan.McparIs.Authentication;
@@ -158,6 +159,10 @@ builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true)
     });
 
 var app = builder.Build();
+var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+    ?? typeof(Program).Assembly.GetName().Version?.ToString()
+    ?? "unknown";
+app.Logger.LogInformation("Starting Krónan Shopping MCP version {Version}", version);
 // Construct the singleton at startup, so cooldown starts at process startup rather than first use.
 var budget = app.Services.GetRequiredService<RequestBudget>();
 app.UseRouting();
@@ -169,9 +174,9 @@ app.MapMcp("/mcp").RequireAuthorization("member").RequireRateLimiting("transport
 var metadata = new { resource = auth.Resource, authorization_servers = new[] { auth.Authority }, scopes_supported = auth.Scopes, bearer_methods_supported = new[] { "header" } };
 app.MapGet("/.well-known/oauth-protected-resource", () => Results.Json(metadata)).RequireRateLimiting("transport");
 app.MapGet("/.well-known/oauth-protected-resource/mcp", () => Results.Json(metadata)).RequireRateLimiting("transport");
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-app.MapGet("/ready", () => budget.StartupRetrySeconds == 0 ? Results.Ok(new { status = "ready" }) :
-    Results.Json(new { status = "warming_up", retryAfterSeconds = budget.StartupRetrySeconds }, statusCode: 503));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", version }));
+app.MapGet("/ready", () => budget.StartupRetrySeconds == 0 ? Results.Ok(new { status = "ready", version }) :
+    Results.Json(new { status = "warming_up", retryAfterSeconds = budget.StartupRetrySeconds, version }, statusCode: 503));
 app.Run();
 
 static bool Https(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https" &&

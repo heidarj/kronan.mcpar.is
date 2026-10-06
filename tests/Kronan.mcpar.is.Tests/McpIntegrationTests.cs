@@ -44,6 +44,18 @@ public sealed class McpIntegrationTests
     }
 
     [Fact]
+    public async Task Health_and_ready_report_the_project_version()
+    {
+        using var factory = new McpFactory(); using var client = factory.CreateClient();
+        var health = await client.GetFromJsonAsync<JsonElement>("/health");
+        var ready = await client.GetFromJsonAsync<JsonElement>("/ready");
+        Assert.Equal("healthy", health.GetProperty("status").GetString());
+        Assert.Equal("ready", ready.GetProperty("status").GetString());
+        Assert.Equal("0.1.3", health.GetProperty("version").GetString());
+        Assert.Equal(health.GetProperty("version").GetString(), ready.GetProperty("version").GetString());
+    }
+
+    [Fact]
     public async Task Registered_tools_include_ui_metadata_and_annotations()
     {
         using var factory = new McpFactory(); using var client = Authenticated(factory);
