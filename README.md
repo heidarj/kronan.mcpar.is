@@ -91,7 +91,7 @@ It includes a loopback MCP configuration and a tunnel-client profile for the dev
 tunnel. Build its ZIP with `python3 scripts/package-plugin-dev.py`. ChatGPT cloud
 tunnel registration still requires workspace plugin access and a registered app ID.
 
-See [full API tool plan](docs/full-api-tool-plan.md) for the complete operation mapping, [implementation plan](docs/implementation-plan.md) for the original staged scope, and [acceptance checks](docs/acceptance.md) for the remaining live gates.
+See [API request examples](docs/api-request-examples.md) for structured tool inputs, [full API tool plan](docs/full-api-tool-plan.md) for the complete operation mapping, [implementation plan](docs/implementation-plan.md) for the original staged scope, and [acceptance checks](docs/acceptance.md) for the remaining live gates.
 
 ## Licensing
 

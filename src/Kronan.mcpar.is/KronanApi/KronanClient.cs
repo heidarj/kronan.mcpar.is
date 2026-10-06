@@ -57,7 +57,7 @@ public sealed class KronanClient
     // Used only by the registered OpenAPI operation wrappers. This deliberately
     // takes a relative path; callers cannot supply a host, credentials, or headers.
     public async Task<ApiResponse> SendOperationAsync(HttpMethod method, string relativePath, JsonElement? body,
-        bool mayChangeState, IReadOnlySet<HttpStatusCode>? acceptedNonSuccess, CancellationToken ct)
+        bool mayChangeState, IReadOnlySet<HttpStatusCode>? acceptedNonSuccess, string permissionFeature, CancellationToken ct)
     {
         if (!configured) throw new ServiceFailure("connection_required", "The server's Krónan connection has not been configured.");
         if (string.IsNullOrWhiteSpace(relativePath) || Uri.TryCreate(relativePath, UriKind.Absolute, out _) ||
@@ -80,12 +80,15 @@ public sealed class KronanClient
                 budget.Cooldown(delay);
                 throw new ServiceFailure("upstream_rate_limited", "Krónan asked us to wait before sending more requests.", (int)Math.Ceiling(delay.TotalSeconds));
             }
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                throw new ServiceFailure("connection_rejected", "Krónan rejected the server credential. Its owner needs to reconnect or rotate it.");
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                throw new ServiceFailure("connection_rejected", "Krónan rejected the server credential. Its owner needs to reconnect or rotate it.", upstreamStatus: (int)response.StatusCode);
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+                throw new ServiceFailure("permission_denied", $"This Krónan access token does not have permission to access {permissionFeature}. Update this token’s permissions in Krónan’s access-key settings: https://kronan.is/adgangur/adgangslyklar", upstreamStatus: (int)response.StatusCode);
             if (!response.IsSuccessStatusCode)
                 throw new ServiceFailure(mayChangeState && (int)response.StatusCode >= 500 ? "outcome_unknown" : "upstream_rejected",
-                    mayChangeState && (int)response.StatusCode >= 500 ? "The change could not be confirmed. Check the current state before trying again." : "Krónan could not complete this request.",
-                    outcomeUnknown: mayChangeState && (int)response.StatusCode >= 500);
+                    mayChangeState && (int)response.StatusCode >= 500 ? "The change could not be confirmed. Check the current state before trying again." :
+                    $"Krónan rejected this request (HTTP {(int)response.StatusCode}). Check the documented arguments for {permissionFeature}.",
+                    outcomeUnknown: mayChangeState && (int)response.StatusCode >= 500, upstreamStatus: (int)response.StatusCode);
             if (response.StatusCode == HttpStatusCode.NoContent || response.Content.Headers.ContentLength == 0)
                 return new ApiResponse((int)response.StatusCode, null);
             var content = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);

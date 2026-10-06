@@ -41,5 +41,10 @@ public sealed class ApiOperationRegistryTests
         using var scalarBody = JsonDocument.Parse("{\"body\":[\"not-an-object\"]}");
         var scalarError = Assert.Throws<ServiceFailure>(() => ApiOperationRegistry.Bind(ApiOperationRegistry.Get("products_batch_create"), scalarBody.RootElement));
         Assert.Equal("invalid_input", scalarError.Code);
+
+        using var deliveryWithoutAddress = JsonDocument.Parse("{\"body\":{}}");
+        var requiredBodyError = Assert.Throws<ServiceFailure>(() => ApiOperationRegistry.Bind(ApiOperationRegistry.Get("slots_delivery_create"), deliveryWithoutAddress.RootElement));
+        Assert.Equal("invalid_input", requiredBodyError.Code);
+        Assert.Contains("addressId", requiredBodyError.Message);
     }
 }

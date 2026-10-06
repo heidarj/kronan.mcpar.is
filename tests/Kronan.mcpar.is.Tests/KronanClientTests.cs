@@ -66,6 +66,42 @@ public sealed class KronanClientTests
         Assert.Equal(1, handler.Calls);
     }
 
+    [Fact]
+    public async Task Forbidden_operation_reports_missing_feature_permission_without_claiming_the_token_is_invalid()
+    {
+        using var handler = new StubHandler((_, _) => Task.FromResult(StubHandler.Json("{}", HttpStatusCode.Forbidden)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => TestSupport.Client(handler).SendOperationAsync(
+            HttpMethod.Get, "addresses/", null, false, null, "delivery addresses", default));
+        Assert.Equal("permission_denied", error.Code);
+        Assert.Equal(403, error.UpstreamStatus);
+        Assert.Contains("delivery addresses", error.Message);
+        Assert.Contains("kronan.is/adgangur/adgangslyklar", error.Message);
+        Assert.DoesNotContain("rotate", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Unauthorized_operation_still_reports_a_rejected_credential()
+    {
+        using var handler = new StubHandler((_, _) => Task.FromResult(StubHandler.Json("{}", HttpStatusCode.Unauthorized)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => TestSupport.Client(handler).SendOperationAsync(
+            HttpMethod.Get, "addresses/", null, false, null, "delivery addresses", default));
+        Assert.Equal("connection_rejected", error.Code);
+        Assert.Equal(401, error.UpstreamStatus);
+    }
+
+    [Fact]
+    public async Task Rejected_operation_includes_only_safe_status_and_feature_context()
+    {
+        using var handler = new StubHandler((_, _) => Task.FromResult(StubHandler.Json("private diagnostic", HttpStatusCode.BadRequest)));
+        var error = await Assert.ThrowsAsync<ServiceFailure>(() => TestSupport.Client(handler).SendOperationAsync(
+            HttpMethod.Get, "categories/bad/products/", null, false, null, "the selected category", default));
+        Assert.Equal("upstream_rejected", error.Code);
+        Assert.Equal(400, error.UpstreamStatus);
+        Assert.Contains("HTTP 400", error.Message);
+        Assert.Contains("selected category", error.Message);
+        Assert.DoesNotContain("private diagnostic", error.Message);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

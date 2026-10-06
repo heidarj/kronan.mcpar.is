@@ -71,6 +71,28 @@ public sealed class McpIntegrationTests
         Assert.Equal("oauth2", show.GetProperty("_meta").GetProperty("securitySchemes")[0].GetProperty("type").GetString());
         var lists = tools.Single(t => t.GetProperty("name").GetString() == "ListProductLists");
         Assert.Equal("account:read", lists.GetProperty("_meta").GetProperty("securitySchemes")[0].GetProperty("scopes")[0].GetString());
+
+        foreach (var tool in tools.Where(tool => tool.GetProperty("inputSchema").GetProperty("properties").TryGetProperty("request", out _)))
+        {
+            var request = tool.GetProperty("inputSchema").GetProperty("properties").GetProperty("request");
+            var types = request.GetProperty("type").ValueKind == JsonValueKind.Array
+                ? request.GetProperty("type").EnumerateArray().Select(value => value.GetString()).ToArray()
+                : [request.GetProperty("type").GetString()];
+            Assert.Contains("object", types);
+            Assert.True(request.GetProperty("properties").TryGetProperty("path", out _));
+            Assert.True(request.GetProperty("properties").TryGetProperty("query", out _));
+            Assert.True(request.GetProperty("properties").TryGetProperty("body", out _));
+        }
+    }
+
+    [Fact]
+    public async Task Structured_operation_request_is_published_as_an_object_and_reaches_the_endpoint()
+    {
+        using var factory = new McpFactory(); using var client = Authenticated(factory);
+        using var response = await Call(client, "GetProductList", new { request = new { path = new { token = "saved-list" } } });
+        var result = (await Json(response)).GetProperty("result");
+        Assert.False(result.TryGetProperty("isError", out var isError) && isError.GetBoolean());
+        Assert.Equal(1, factory.Upstream.Calls);
     }
 
     [Fact]

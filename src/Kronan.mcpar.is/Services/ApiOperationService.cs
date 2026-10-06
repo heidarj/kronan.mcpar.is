@@ -19,7 +19,7 @@ public sealed class ApiOperationService(KronanClient client, HouseholdAccess acc
         Require(access, authentication.Value, operation.Scope);
         var bound = ApiOperationRegistry.Bind(operation, request);
         var response = await client.SendOperationAsync(operation.Method, bound.Path, bound.Body, operation.MayChangeState,
-            Accepted(operation), cancellationToken);
+            Accepted(operation), ApiOperationRegistry.FeatureDescription(operation), cancellationToken);
         return new ApiResult(response.StatusCode, response.Content);
     }
 
@@ -43,7 +43,7 @@ public sealed class ApiOperationService(KronanClient client, HouseholdAccess acc
         var result = await mutations.ExecuteAsync(actor, operation, preparedOperationId, request, async token =>
         {
             var response = await client.SendOperationAsync(operation.Method, bound.Path, bound.Body, operation.MayChangeState,
-                Accepted(operation), token);
+                Accepted(operation), ApiOperationRegistry.FeatureDescription(operation), token);
             return new ApiResult(response.StatusCode, response.Content);
         }, cancellationToken);
         return result;

@@ -1,10 +1,10 @@
 using System.ComponentModel;
-using System.Text.Json;
 using Kronan.McparIs.Services;
 using Kronan.McparIs.Options;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using JsonElement = Kronan.McparIs.Models.ApiOperationRequest;
 
 namespace Kronan.McparIs.Tools;
 
@@ -39,7 +39,7 @@ public sealed class FullApiTools(ApiOperationService api)
     [McpServerTool(Name = "PrepareApiOperation", ReadOnly = false, Destructive = false, Idempotent = false),
      Description("Prepare a non-read Krónan API operation. Send the exact operation name and the same structured request that the matching mutation tool will receive. Reuse the returned operation ID only for that exact action.")]
     public CallToolResult PrepareApiOperation(string operation, JsonElement? request = null) =>
-        ToolResults.Success(new { prepared = api.Prepare(operation, request) }, "Operation prepared.");
+        ToolResults.Success(new { prepared = api.Prepare(operation, request?.ToJsonElement()) }, "Operation prepared.");
 
     [McpServerTool(Name = "ListAddresses", ReadOnly = true, Idempotent = true), Description("List delivery addresses belonging to the connected identity.")]
     public Task<CallToolResult> ListAddresses(CancellationToken cancellationToken = default) => Read("addresses_list", null, cancellationToken);
@@ -59,7 +59,7 @@ public sealed class FullApiTools(ApiOperationService api)
     [McpServerTool(Name = "UpdateCheckoutLines", ReadOnly = false, Destructive = true, Idempotent = false), Description("Update checkout lines using request.body. The upstream replace field defaults to true, so set it explicitly after reviewing existing checkout lines.")]
     public Task<CallToolResult> UpdateCheckoutLines(string operationId, JsonElement request, CancellationToken cancellationToken = default) => Change("checkout_lines_create", operationId, request, cancellationToken);
 
-    [McpServerTool(Name = "PreviewCheckoutLines", ReadOnly = true, Idempotent = true), Description("Validate proposed checkout product lines and return availability and estimated subtotal without changing the checkout.")]
+    [McpServerTool(Name = "PreviewCheckoutLines", ReadOnly = true, Idempotent = true), Description("Validate proposed checkout product lines and return availability and estimated subtotal without changing the checkout. request.body.lines is required.")]
     public Task<CallToolResult> PreviewCheckoutLines(JsonElement request, CancellationToken cancellationToken = default) => Read("checkout_preview_lines_create", request, cancellationToken);
 
     [McpServerTool(Name = "GetIdentity", ReadOnly = true, Idempotent = true), Description("Get the type and display name of the identity represented by the configured Krónan token.")]
@@ -128,7 +128,7 @@ public sealed class FullApiTools(ApiOperationService api)
     [McpServerTool(Name = "GetProductByBarcode", ReadOnly = true, Idempotent = true), Description("Look up a product by barcode. request.path.barcode is required.")]
     public Task<CallToolResult> GetProductByBarcode(JsonElement request, CancellationToken cancellationToken = default) => Read("products_barcode_retrieve", request, cancellationToken);
 
-    [McpServerTool(Name = "GetProductsBatch", ReadOnly = true, Idempotent = true), Description("Look up up to 100 product SKUs in request.body.")]
+    [McpServerTool(Name = "GetProductsBatch", ReadOnly = true, Idempotent = true), Description("Look up up to 100 product SKUs. request.body.skus is required.")]
     public Task<CallToolResult> GetProductsBatch(JsonElement request, CancellationToken cancellationToken = default) => Read("products_batch_create", request, cancellationToken);
 
     [McpServerTool(Name = "ListProductsByTag", ReadOnly = true, Idempotent = true), Description("List products with a tag. request.path.slug is required; request.query.page is optional.")]
@@ -162,7 +162,8 @@ public sealed class FullApiTools(ApiOperationService api)
     public Task<CallToolResult> SearchRecipes(JsonElement request, CancellationToken cancellationToken = default) => Read("recipes_search_create", request, cancellationToken);
 
     [McpServerTool(Name = "GetApiSchema", ReadOnly = true, Idempotent = true), Description("Get Krónan's OpenAPI schema document. This may be large; inspect only the relevant operation section.")]
-    public Task<CallToolResult> GetApiSchema(JsonElement? request = null, CancellationToken cancellationToken = default) => Read("schema_retrieve", request, cancellationToken);
+    public Task<CallToolResult> GetApiSchema(JsonElement? request = null, CancellationToken cancellationToken = default) =>
+        Read("schema_retrieve", request ?? JsonElement.WithQuery("format", "json"), cancellationToken);
 
     [McpServerTool(Name = "AddShoppingNoteItem", ReadOnly = false, Destructive = false, Idempotent = false), Description("Add one free-text or SKU item to the shopping note using documented request.body.")]
     public Task<CallToolResult> AddShoppingNoteItem(string operationId, JsonElement request, CancellationToken cancellationToken = default) => Change("shopping_notes_add_line_create", operationId, request, cancellationToken);
@@ -188,7 +189,7 @@ public sealed class FullApiTools(ApiOperationService api)
     [McpServerTool(Name = "ListScanAndGoStores", ReadOnly = true, Idempotent = true), Description("List Scan and Go stores and their ext_id values.")]
     public Task<CallToolResult> ListScanAndGoStores(CancellationToken cancellationToken = default) => Read("shopping_notes_scan_n_go_stores_list", null, cancellationToken);
 
-    [McpServerTool(Name = "SearchStoreProducts", ReadOnly = true, Idempotent = true), Description("Search a selected Scan and Go store's product selection using documented request.body.")]
+    [McpServerTool(Name = "SearchStoreProducts", ReadOnly = true, Idempotent = true), Description("Search a selected Scan and Go store's product selection. request.body requires query and store; store is the ext_id returned by ListScanAndGoStores.")]
     public Task<CallToolResult> SearchStoreProducts(JsonElement request, CancellationToken cancellationToken = default) => Read("shopping_notes_search_create", request, cancellationToken);
 
     [McpServerTool(Name = "SortShoppingNoteByStore", ReadOnly = false, Destructive = false, Idempotent = false), Description("Request Krónan's documented store-product ordering for the shopping note. This endpoint has no request body.")]
@@ -197,7 +198,7 @@ public sealed class FullApiTools(ApiOperationService api)
     [McpServerTool(Name = "ToggleShoppingNoteLineCompletion", ReadOnly = false, Destructive = false, Idempotent = false), Description("Toggle a shopping-note line's completion state. This is a non-idempotent upstream toggle.")]
     public Task<CallToolResult> ToggleShoppingNoteLineCompletion(string operationId, JsonElement request, CancellationToken cancellationToken = default) => Change("shopping_notes_toggle_complete_on_line_partial_update", operationId, request, cancellationToken);
 
-    [McpServerTool(Name = "ListDeliverySlots", ReadOnly = true, Idempotent = true), Description("List delivery slots for the documented addressId in request.body.")]
+    [McpServerTool(Name = "ListDeliverySlots", ReadOnly = true, Idempotent = true), Description("List delivery slots. request.body.addressId is required and must come from ListAddresses.")]
     public Task<CallToolResult> ListDeliverySlots(JsonElement request, CancellationToken cancellationToken = default) => Read("slots_delivery_create", request, cancellationToken);
 
     [McpServerTool(Name = "ReserveDeliverySlot", ReadOnly = false, Destructive = false, Idempotent = false), Description("Reserve a delivery slot using documented request.body. Disabled by default because it can authorize an amount and create an order context.")]
@@ -210,8 +211,8 @@ public sealed class FullApiTools(ApiOperationService api)
     public Task<CallToolResult> ReservePickupSlot(string operationId, JsonElement request, CancellationToken cancellationToken = default) => Change("slots_pickup_reserve_create", operationId, request, cancellationToken);
 
     private async Task<CallToolResult> Read(string operation, JsonElement? request, CancellationToken cancellationToken) =>
-        ToolResults.Success(new { result = await api.ReadAsync(operation, request, cancellationToken) }, "Krónan API operation completed.");
+        ToolResults.Success(new { result = await api.ReadAsync(operation, request?.ToJsonElement(), cancellationToken) }, "Krónan API operation completed.");
 
     private async Task<CallToolResult> Change(string operation, string operationId, JsonElement? request, CancellationToken cancellationToken) =>
-        ToolResults.Success(new { result = await api.ExecuteAsync(operation, operationId, request, cancellationToken) }, "Krónan API operation completed. Refresh the resource to inspect current state.");
+        ToolResults.Success(new { result = await api.ExecuteAsync(operation, operationId, request?.ToJsonElement(), cancellationToken) }, "Krónan API operation completed. Refresh the resource to inspect current state.");
 }

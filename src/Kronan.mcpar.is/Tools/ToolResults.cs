@@ -18,6 +18,7 @@ public static class ToolResults
         IsError = true,
         Content = [new TextContentBlock { Text = failure.Message }],
         StructuredContent = JsonSerializer.SerializeToElement(new { error = new { code = failure.Code, message = failure.Message,
-            retryAfterSeconds = failure.RetryAfterSeconds, outcomeUnknown = failure.OutcomeUnknown } }, JsonOptions)
+            retryAfterSeconds = failure.RetryAfterSeconds, outcomeUnknown = failure.OutcomeUnknown,
+            upstreamStatus = failure.UpstreamStatus } }, JsonOptions)
     };
 }
